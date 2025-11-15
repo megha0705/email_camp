@@ -1,0 +1,120 @@
+
+  tinymce.init({
+    selector: '#email-body',
+  height: 300,
+  branding: false,
+    plugins: [
+      // Core editing features
+      'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'link', 'lists', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount',
+    ],
+    toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography uploadcare | align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat',
+    tinycomments_mode: 'embedded',
+    tinycomments_author: 'Author name',
+    mergetags_list: [
+      { value: 'First.Name', title: 'First Name' },
+      { value: 'Email', title: 'Email' },
+    ],
+    ai_request: (request, respondWith) => respondWith.string(() => Promise.reject('See docs to implement AI Assistant')),
+    uploadcare_public_key: '25feb98ce5e598083791',
+  });
+
+
+function previewEmail() {
+  const subject = document.getElementById("email-subject").value;
+  const body = tinymce.get('email-body').getContent();
+
+  if (!subject && !body) {
+    alert("Please enter subject and body to preview.");
+    return;
+  }
+
+  const previewWindow = window.open("", "_blank", "width=800,height=600");
+  previewWindow.document.write(`<h2>${subject}</h2>`);
+  previewWindow.document.write(body);
+}
+
+
+const params = new URLSearchParams(window.location.search);
+const fileId = params.get("fileId");
+
+if (fileId) {
+  const fileInput = document.getElementById("campaign-file");
+  const fileLabel = document.getElementById("existing-file");
+  const createButton = document.querySelector("button.action");
+
+  fileInput.disabled = true;
+  //createButton.textContent = "Reschedule Campaign";
+
+
+  fetch(`https://email-dev0-camp-v1.make-tronics.com/{fileId}/getLogsById`)
+    .then(res => res.json())
+    .then(data => {
+      fileLabel.textContent = `📄 Selected file: ${data.fileName}`;
+
+
+      if (data.scheduledTime) {
+        document.getElementById("campaign-date").value = data.scheduledTime.replace(" ", "T");
+      }
+
+
+      if (data.emailContent) {
+        document.getElementById("email-subject").value = data.emailContent.subject;
+        tinymce.get('email-body').setContent(data.emailContent.body);
+      }
+    })
+    .catch(err => {
+      console.error("Error fetching file details:", err);
+      fileLabel.textContent = "⚠️ Could not load file details.";
+    });
+}
+
+
+async function createCampaign() {
+  const file = document.getElementById("campaign-file").files[0];
+  const date = document.getElementById("campaign-date").value;
+  const subject = document.getElementById("email-subject").value;
+  const body = tinymce.get('email-body').getContent();
+  const errorEl = document.getElementById("campaign-error");
+  const responseEl = document.getElementById("campaign-response");
+
+  errorEl.textContent = "";
+  responseEl.textContent = "";
+
+
+  if ((!fileId && !file) || !date || !subject || !body) {
+    errorEl.textContent = "⚠️ Please fill all required fields.";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("dateTime", date);
+  formData.append("subject", subject);
+  formData.append("body", body);
+
+  let endpoint = "https://email-dev0-camp-v1.make-tronics.com/campaign/create";
+
+  if (fileId) {
+    endpoint = "https://email-dev0-camp-v1.make-tronics.com/campaign/reschedule";
+    formData.append("fileId", Number(fileId));
+  } else {
+    formData.append("file", file);
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      body: formData
+    });
+
+    if (response.ok) {
+      const text = await response.text();
+      responseEl.textContent = `✅ ${text}`;
+      setTimeout(() => { window.location.href = "../FileLog/FileLog.html"; }, 1500);
+    } else {
+      errorEl.textContent = "❌ Failed to create campaign.";
+    }
+  } catch (err) {
+    console.error("Error:", err);
+    errorEl.textContent = "❌ Something went wrong while connecting to backend.";
+  }
+}
