@@ -26,7 +26,7 @@ public class EmailService {
                 try{
                     MimeMessage mimeMessage = javaMailSender.createMimeMessage();
                     MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-                    helper.setFrom("reshmichakraborty2411@gmail.com"); // 🔹 put a real email here
+                    helper.setFrom("kaushik@make-tronics.com"); // 🔹 put a real email here
                     helper.setTo(email);
                     helper.setSubject(subject);
                     helper.setText(body, true);
